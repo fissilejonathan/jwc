@@ -5,7 +5,7 @@ use clap::Parser;
 #[command(author = "Jonathan Morales")]
 #[command(version = "1.0")]
 #[command(about = "Print newline, word, and byte counts for each FILE, and a total line if more than one FILE is specified. With no FILE, or when FILE is -, r", long_about = None)]
-struct Cli {
+struct Args {
     /// print the byte counts
     #[arg(short = 'c', long)]
     bytes: bool,
@@ -19,8 +19,8 @@ struct Cli {
     lines: bool,
 
     /// read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input
-    #[arg(id = "files0-from", long, value_name = "F")]
-    files_0_from: Option<String>,
+    #[arg(id = "files0-from", long, value_name = "F", default_value = "-")]
+    files_0_from: String,
 
     /// print the length of the longest line
     #[arg(short = 'L', long)]
@@ -32,8 +32,8 @@ struct Cli {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    let cli = Args::parse();
 
     println!("bytes: {:?}", cli.bytes);
-    println!("chars: {:?}", cli.chars);
+    println!("files_0_from: {:?}", cli.files_0_from);
 }
