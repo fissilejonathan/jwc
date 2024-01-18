@@ -6,31 +6,31 @@ use clap::Parser;
 #[command(version = "1.0")]
 #[command(about = "Print newline, word, and byte counts for each FILE, and a total line if more than one FILE is specified. With no FILE, or when FILE is -, r", long_about = None)]
 struct Args {
-    /// print the byte counts
+    /// Print the byte counts
     #[arg(short = 'c', long)]
     bytes: bool,
 
-    /// print the character counts
+    /// Print the character counts
     #[arg(short = 'm', long)]
     chars: bool,
 
-    /// print the newline counts
+    /// Print the newline counts
     #[arg(short, long)]
     lines: bool,
 
-    /// read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input else input should be comma separated
+    /// Read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input else input should be comma separated
     #[arg(id = "read-from", long, value_name = "F")]
     read_from: Option<String>,
 
-    /// print the length of the longest line
+    /// Print the length of the longest line
     #[arg(short = 'L', long)]
     max_line_length: bool,
 
-    /// print the word counts
+    /// Print the word counts
     #[arg(short, long)]
     words: bool,
 
-    /// files that will be processed; can be one or more
+    /// Files that will be processed; Can be one or more
     files: Option<Vec<String>>,
 }
 
