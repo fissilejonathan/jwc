@@ -35,8 +35,19 @@ struct Args {
 }
 
 fn main() {
-    let cli = Args::parse();
+    let args = Args::parse();
 
-    println!("read_from: {:?}", cli.read_from);
-    println!("files: {:?}", cli.files);
+    println!("read_from: {:?}", args.read_from);
+    println!("files: {:?}", args.files);
+
+    if let Some(arg) = args.read_from {
+        if arg == "-" {
+            // read from standard input
+        } else {
+            // split input by commas
+            // read from files
+        }
+    } else {
+        // read from standard input
+    }
 }
