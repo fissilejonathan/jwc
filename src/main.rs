@@ -34,6 +34,6 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    println!("two: {:?}", cli.bytes);
-    println!("one: {:?}", cli.chars);
+    println!("bytes: {:?}", cli.bytes);
+    println!("chars: {:?}", cli.chars);
 }
