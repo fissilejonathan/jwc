@@ -144,24 +144,30 @@ fn main() {
 
                         cells.push(Cell::new(&fs.file_name));
 
-                        if args.bytes {
+                        if !args.bytes && !args.chars && !args.lines {
                             cells.push(Cell::new(&fs.byte_count.to_string()));
-                        }
-
-                        if args.chars {
                             cells.push(Cell::new(&fs.char_count.to_string()));
-                        }
-
-                        if args.lines {
                             cells.push(Cell::new(&fs.line_count.to_string()));
-                        }
+                        } else {
+                            if args.bytes {
+                                cells.push(Cell::new(&fs.byte_count.to_string()));
+                            }
 
-                        if args.max_line_length {
-                            cells.push(Cell::new(&fs.max_line_length.to_string()));
-                        }
+                            if args.chars {
+                                cells.push(Cell::new(&fs.char_count.to_string()));
+                            }
 
-                        if args.words {
-                            cells.push(Cell::new(&fs.word_count.to_string()));
+                            if args.lines {
+                                cells.push(Cell::new(&fs.line_count.to_string()));
+                            }
+
+                            if args.max_line_length {
+                                cells.push(Cell::new(&fs.max_line_length.to_string()));
+                            }
+
+                            if args.words {
+                                cells.push(Cell::new(&fs.word_count.to_string()));
+                            }
                         }
 
                         Row::new(cells)
