@@ -1,6 +1,7 @@
 use clap::Parser;
 use prettytable::{row, Cell, Row, Table};
 use rayon::prelude::*;
+use std::env;
 use std::fs::File;
 use std::io::Result;
 use std::io::{self, BufRead};
@@ -125,13 +126,12 @@ fn main() {
     let args = Args::parse();
 
     if let Some(read_from) = args.read_from {
-        println!("read_from: {:?}", read_from);
-
         if read_from == "-" {
-            // read from standard input
+            let input_files: Vec<String> = env::args().into_iter().skip(3).collect();
+
+            println!("{:?}", input_files);
         } else {
-            // split input by commas
-            // read from files
+            let input_files: Vec<String> = read_from.split(",").map(|s| s.to_string()).collect();
         }
     } else {
         if let Some(files) = args.files {
