@@ -4,6 +4,7 @@ use rayon::prelude::*;
 use std::fs::File;
 use std::io::Result;
 use std::io::{self, BufRead};
+use std::sync::{Arc, Mutex};
 
 #[derive(Parser)]
 #[command(name = "jwc")]
@@ -48,11 +49,7 @@ struct FileStat {
     word_count: usize,
 }
 
-fn is_default_output(bytes_arg: bool, chars_arg: bool, lines_arg: bool) -> bool {
-    !bytes_arg && !chars_arg && !lines_arg
-}
-
-fn process_file(file_path: &String) -> Result<Option<FileStat>> {
+fn process_file(file_path: &String) -> Result<FileStat> {
     let file = File::open(file_path)?;
     let reader = io::BufReader::new(file);
 
@@ -77,43 +74,44 @@ fn process_file(file_path: &String) -> Result<Option<FileStat>> {
         }
     }
 
-    Ok(Some(FileStat {
+    Ok(FileStat {
         file_name: file_path.to_string(),
         byte_count,
         char_count,
         line_count,
         word_count,
         max_line_length: max_line_length,
-    }))
+    })
 }
 
-fn setup_table(args: &Args) -> Table {
+fn setup_table(bytes: bool, chars: bool, lines: bool, max_line_length: bool, words: bool) -> Table {
     let mut table = Table::new();
 
-    if is_default_output(args.bytes, args.chars, args.lines) {
+    // default outputf
+    if !bytes && !chars && !lines {
         table.add_row(row!["FILE", "BYTES", "CHARS", "LINES"]);
     } else {
         let mut cells = Vec::<Cell>::new();
 
         cells.push(Cell::new("FILE"));
 
-        if args.bytes {
+        if bytes {
             cells.push(Cell::new("BYTES"));
         }
 
-        if args.chars {
+        if chars {
             cells.push(Cell::new("CHARS"));
         }
 
-        if args.lines {
+        if lines {
             cells.push(Cell::new("LINES"));
         }
 
-        if args.max_line_length {
+        if max_line_length {
             cells.push(Cell::new("MAX LINE LENGTH"));
         }
 
-        if args.words {
+        if words {
             cells.push(Cell::new("WORDS"));
         }
 
@@ -137,11 +135,58 @@ fn main() {
         }
     } else {
         if let Some(files) = args.files {
-            let file_stats = files.par_iter().map(|file_path| process_file(file_path));
+            let rows = files.par_iter().map(|file_path| {
+                let file_result = process_file(file_path);
 
-            // let table: Table = setup_table(args);
+                match file_result {
+                    Ok(fs) => {
+                        let mut cells = Vec::<Cell>::new();
 
-            // table.printstd();
+                        cells.push(Cell::new(&fs.file_name));
+
+                        if args.bytes {
+                            cells.push(Cell::new(&fs.byte_count.to_string()));
+                        }
+
+                        if args.chars {
+                            cells.push(Cell::new(&fs.char_count.to_string()));
+                        }
+
+                        if args.lines {
+                            cells.push(Cell::new(&fs.line_count.to_string()));
+                        }
+
+                        if args.max_line_length {
+                            cells.push(Cell::new(&fs.max_line_length.to_string()));
+                        }
+
+                        if args.words {
+                            cells.push(Cell::new(&fs.word_count.to_string()));
+                        }
+
+                        Row::new(cells)
+                    }
+                    Err(_) => todo!(),
+                }
+            });
+
+            let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(setup_table(
+                args.bytes,
+                args.chars,
+                args.lines,
+                args.max_line_length,
+                args.words,
+            )));
+
+            rows.for_each(|row| {
+                // Lock the mutex to access the table
+                let mut locked_table = table.lock().unwrap();
+
+                locked_table.add_row(row);
+            });
+
+            let locked_table = table.lock().unwrap();
+            locked_table.printstd();
         }
     }
 }
