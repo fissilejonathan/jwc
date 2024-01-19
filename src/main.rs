@@ -170,9 +170,9 @@ fn main() {
                             }
                         }
 
-                        Row::new(cells)
+                        Ok(Row::new(cells))
                     }
-                    Err(_) => todo!(),
+                    Err(e) => Err(format!("{} - {}", file_path, e.kind())),
                 }
             });
 
@@ -184,11 +184,16 @@ fn main() {
                 args.words,
             )));
 
-            rows.for_each(|row| {
-                // Lock the mutex to access the table
-                let mut locked_table = table.lock().unwrap();
+            rows.for_each(|row_result| {
+                match row_result {
+                    Ok(row) => {
+                        // Lock the mutex to access the table
+                        let mut locked_table = table.lock().unwrap();
 
-                locked_table.add_row(row);
+                        locked_table.add_row(row);
+                    }
+                    Err(e) => println!("{}", e),
+                }
             });
 
             let locked_table = table.lock().unwrap();
