@@ -87,6 +87,42 @@ fn process_file(file_path: &String) -> Result<Option<FileStat>> {
     }))
 }
 
+fn setup_table(args: &Args) -> Table {
+    let mut table = Table::new();
+
+    if is_default_output(args.bytes, args.chars, args.lines) {
+        table.add_row(row!["FILE", "BYTES", "CHARS", "LINES"]);
+    } else {
+        let mut cells = Vec::<Cell>::new();
+
+        cells.push(Cell::new("FILE"));
+
+        if args.bytes {
+            cells.push(Cell::new("BYTES"));
+        }
+
+        if args.chars {
+            cells.push(Cell::new("CHARS"));
+        }
+
+        if args.lines {
+            cells.push(Cell::new("LINES"));
+        }
+
+        if args.max_line_length {
+            cells.push(Cell::new("MAX LINE LENGTH"));
+        }
+
+        if args.words {
+            cells.push(Cell::new("WORDS"));
+        }
+
+        table.add_row(Row::new(cells));
+    }
+
+    table
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -103,39 +139,9 @@ fn main() {
         if let Some(files) = args.files {
             let file_stats = files.par_iter().map(|file_path| process_file(file_path));
 
-            let mut table = Table::new();
+            // let table: Table = setup_table(args);
 
-            if is_default_output(args.bytes, args.chars, args.lines) {
-                table.add_row(row!["FILE", "BYTES", "CHARS", "LINES"]);
-            } else {
-                let mut cells = Vec::<Cell>::new();
-
-                cells.push(Cell::new("FILE"));
-
-                if args.bytes {
-                    cells.push(Cell::new("BYTES"));
-                }
-
-                if args.chars {
-                    cells.push(Cell::new("CHARS"));
-                }
-
-                if args.lines {
-                    cells.push(Cell::new("LINES"));
-                }
-
-                if args.max_line_length {
-                    cells.push(Cell::new("MAX LINE LENGTH"));
-                }
-
-                if args.words {
-                    cells.push(Cell::new("WORDS"));
-                }
-
-                table.add_row(Row::new(cells));
-            }
-
-            table.printstd();
+            // table.printstd();
         }
     }
 }
