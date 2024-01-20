@@ -127,11 +127,18 @@ fn main() {
 
     if let Some(read_from) = args.read_from {
         if read_from == "-" {
-            let input_files: Vec<String> = env::args().into_iter().skip(3).collect();
+            let dash_index = env::args()
+                .into_iter()
+                .position(|arg| arg.ends_with("-"))
+                .unwrap();
 
-            println!("{:?}", input_files);
+            let input_files: Vec<String> = env::args().skip(dash_index + 1).collect();
+
+            println!("input_files {:?}", input_files);
         } else {
             let input_files: Vec<String> = read_from.split(",").map(|s| s.to_string()).collect();
+
+            println!("{:?}", input_files);
         }
     } else {
         if let Some(files) = args.files {
