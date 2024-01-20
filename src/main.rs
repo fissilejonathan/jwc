@@ -1,4 +1,5 @@
 use clap::Parser;
+use file_stat::FileStat;
 use prettytable::{row, Cell, Row, Table};
 use rayon::prelude::*;
 use std::env;
@@ -6,6 +7,8 @@ use std::fs::File;
 use std::io::Result;
 use std::io::{self, BufRead};
 use std::sync::{Arc, Mutex};
+
+pub mod file_stat;
 
 #[derive(Parser)]
 #[command(name = "jwc")]
@@ -41,48 +44,19 @@ struct Args {
     files: Option<Vec<String>>,
 }
 
-struct FileStat {
-    file_name: String,
-    byte_count: usize,
-    char_count: usize,
-    line_count: usize,
-    max_line_length: usize,
-    word_count: usize,
-}
-
-fn process_file(file_path: &String) -> Result<FileStat> {
-    let file = File::open(file_path)?;
+fn process_input_file(input_file: &String) -> Result<Vec<String>> {
+    let file = File::open(input_file)?;
     let reader = io::BufReader::new(file);
 
-    let mut byte_count = 0;
-    let mut char_count: usize = 0;
-    let mut line_count = 0;
-    let mut word_count = 0;
-    let mut max_line_length = 0;
+    let mut input_files = Vec::<String>::new();
 
-    for line in reader.lines() {
-        let line = line?;
-
-        let line_byte_count: usize = line.len();
-
-        byte_count += line_byte_count;
-        char_count += line.chars().count();
-        line_count += 1;
-        word_count += line.split_whitespace().count();
-
-        if line_byte_count > max_line_length {
-            max_line_length = line_byte_count;
+    for line_result in reader.lines() {
+        if let Ok(line) = line_result {
+            input_files.push(line);
         }
     }
 
-    Ok(FileStat {
-        file_name: file_path.to_string(),
-        byte_count,
-        char_count,
-        line_count,
-        word_count,
-        max_line_length: max_line_length,
-    })
+    return Ok(input_files);
 }
 
 fn setup_table(bytes: bool, chars: bool, lines: bool, max_line_length: bool, words: bool) -> Table {
@@ -125,6 +99,14 @@ fn setup_table(bytes: bool, chars: bool, lines: bool, max_line_length: bool, wor
 fn main() {
     let args = Args::parse();
 
+    let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(setup_table(
+        args.bytes,
+        args.chars,
+        args.lines,
+        args.max_line_length,
+        args.words,
+    )));
+
     if let Some(read_from) = args.read_from {
         if read_from == "-" {
             let dash_index = env::args()
@@ -134,7 +116,11 @@ fn main() {
 
             let input_files: Vec<String> = env::args().skip(dash_index + 1).collect();
 
-            println!("input_files {:?}", input_files);
+            let rows = input_files
+                .par_iter()
+                .filter_map(|input_file| process_input_file(input_file).ok())
+                .flat_map(|file_paths| file_paths)
+                .map(|file_path| {});
         } else {
             let input_files: Vec<String> = read_from.split(",").map(|s| s.to_string()).collect();
 
@@ -143,55 +129,42 @@ fn main() {
     } else {
         if let Some(files) = args.files {
             let rows = files.par_iter().map(|file_path| {
-                let file_result = process_file(file_path);
+                let file_stat = FileStat::try_from(file_path)?;
 
-                match file_result {
-                    Ok(fs) => {
-                        let mut cells = Vec::<Cell>::new();
+                let mut cells = Vec::<Cell>::new();
 
-                        cells.push(Cell::new(&fs.file_name));
+                cells.push(Cell::new(&file_stat.file_name));
 
-                        if !args.bytes && !args.chars && !args.lines {
-                            cells.push(Cell::new(&fs.byte_count.to_string()));
-                            cells.push(Cell::new(&fs.char_count.to_string()));
-                            cells.push(Cell::new(&fs.line_count.to_string()));
-                        } else {
-                            if args.bytes {
-                                cells.push(Cell::new(&fs.byte_count.to_string()));
-                            }
-
-                            if args.chars {
-                                cells.push(Cell::new(&fs.char_count.to_string()));
-                            }
-
-                            if args.lines {
-                                cells.push(Cell::new(&fs.line_count.to_string()));
-                            }
-
-                            if args.max_line_length {
-                                cells.push(Cell::new(&fs.max_line_length.to_string()));
-                            }
-
-                            if args.words {
-                                cells.push(Cell::new(&fs.word_count.to_string()));
-                            }
-                        }
-
-                        Ok(Row::new(cells))
+                if !args.bytes && !args.chars && !args.lines {
+                    cells.push(Cell::new(&file_stat.byte_count.to_string()));
+                    cells.push(Cell::new(&file_stat.char_count.to_string()));
+                    cells.push(Cell::new(&file_stat.line_count.to_string()));
+                } else {
+                    if args.bytes {
+                        cells.push(Cell::new(&file_stat.byte_count.to_string()));
                     }
-                    Err(e) => Err(format!("{} - {}", file_path, e.kind())),
+
+                    if args.chars {
+                        cells.push(Cell::new(&file_stat.char_count.to_string()));
+                    }
+
+                    if args.lines {
+                        cells.push(Cell::new(&file_stat.line_count.to_string()));
+                    }
+
+                    if args.max_line_length {
+                        cells.push(Cell::new(&file_stat.max_line_length.to_string()));
+                    }
+
+                    if args.words {
+                        cells.push(Cell::new(&file_stat.word_count.to_string()));
+                    }
                 }
+
+                Ok(Row::new(cells))
             });
 
-            let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(setup_table(
-                args.bytes,
-                args.chars,
-                args.lines,
-                args.max_line_length,
-                args.words,
-            )));
-
-            rows.for_each(|row_result| {
+            rows.for_each(|row_result: Result<Row>| {
                 match row_result {
                     Ok(row) => {
                         // Lock the mutex to access the table
@@ -202,9 +175,9 @@ fn main() {
                     Err(e) => println!("{}", e),
                 }
             });
-
-            let locked_table = table.lock().unwrap();
-            locked_table.printstd();
         }
     }
+
+    let locked_table = table.lock().unwrap();
+    locked_table.printstd();
 }
