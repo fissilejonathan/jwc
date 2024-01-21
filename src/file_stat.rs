@@ -18,37 +18,46 @@ impl TryFrom<&String> for FileStat {
     type Error = std::io::Error;
 
     fn try_from(file_path: &String) -> Result<Self, Self::Error> {
-        let file = File::open(&file_path)?;
-        let reader = io::BufReader::new(file);
+        let file_result = File::open(&file_path);
 
-        let mut byte_count = 0;
-        let mut char_count: usize = 0;
-        let mut line_count = 0;
-        let mut word_count = 0;
-        let mut max_line_length = 0;
+        match file_result {
+            Ok(file) => {
+                let reader = io::BufReader::new(file);
 
-        for line in reader.lines() {
-            let line = line?;
+                let mut byte_count = 0;
+                let mut char_count: usize = 0;
+                let mut line_count = 0;
+                let mut word_count = 0;
+                let mut max_line_length = 0;
 
-            let line_byte_count: usize = line.len();
+                for line in reader.lines() {
+                    let line = line?;
 
-            byte_count += line_byte_count;
-            char_count += line.chars().count();
-            line_count += 1;
-            word_count += line.split_whitespace().count();
+                    let line_byte_count: usize = line.len();
 
-            if line_byte_count > max_line_length {
-                max_line_length = line_byte_count;
+                    byte_count += line_byte_count;
+                    char_count += line.chars().count();
+                    line_count += 1;
+                    word_count += line.split_whitespace().count();
+
+                    if line_byte_count > max_line_length {
+                        max_line_length = line_byte_count;
+                    }
+                }
+
+                Ok(FileStat {
+                    file_name: file_path.to_string(),
+                    byte_count,
+                    char_count,
+                    line_count,
+                    word_count,
+                    max_line_length,
+                })
             }
+            Err(e) => Err(std::io::Error::new(
+                e.kind(),
+                format!("{file_path} - {}", e.to_string()),
+            )),
         }
-
-        Ok(FileStat {
-            file_name: file_path.to_string(),
-            byte_count,
-            char_count,
-            line_count,
-            word_count,
-            max_line_length,
-        })
     }
 }
