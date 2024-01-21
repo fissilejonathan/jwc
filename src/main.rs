@@ -1,48 +1,19 @@
+use args::{Args, FlagArgs};
 use clap::Parser;
 use file_stat::FileStat;
 use prettytable::{row, Cell, Row, Table};
 use rayon::prelude::*;
-use std::env;
-use std::fs::File;
-use std::io::Result;
-use std::io::{self, BufRead};
-use std::sync::{Arc, Mutex};
+use std::{
+    env,
+    fs::File,
+    io::{self, BufRead, Result},
+    sync::{Arc, Mutex},
+};
 
+pub mod args;
 pub mod file_stat;
 
-#[derive(Parser)]
-#[command(name = "jwc")]
-#[command(author = "Jonathan Morales")]
-#[command(version = "1.0")]
-#[command(about = "Print newline, word, and byte counts for each FILE, and a total line if more than one FILE is specified. With no FILE, or when FILE is -, r", long_about = None)]
-struct Args {
-    /// Print the byte counts
-    #[arg(short, long)]
-    bytes: bool,
-
-    /// Print the character counts
-    #[arg(short, long)]
-    chars: bool,
-
-    /// Print the newline counts
-    #[arg(short, long)]
-    lines: bool,
-
-    /// Print the length of the longest line
-    #[arg(short = 'L', long)]
-    max_line_length: bool,
-
-    /// Print the word counts
-    #[arg(short, long)]
-    words: bool,
-
-    /// Read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input else input should be comma separated
-    #[arg(id = "read-from", long, value_name = "F")]
-    read_from: Option<String>,
-
-    /// Files that will be processed; Can be one or more
-    files: Option<Vec<String>>,
-}
+use std::convert::TryFrom;
 
 fn process_input_file(input_file: &String) -> Result<Vec<String>> {
     let file = File::open(input_file)?;
@@ -59,34 +30,68 @@ fn process_input_file(input_file: &String) -> Result<Vec<String>> {
     return Ok(input_files);
 }
 
-fn setup_table(bytes: bool, chars: bool, lines: bool, max_line_length: bool, words: bool) -> Table {
+fn process_file_stat(file_stat: &FileStat, flag_args: &FlagArgs) -> Row {
+    let mut cells = Vec::<Cell>::new();
+
+    cells.push(Cell::new(&file_stat.file_name));
+
+    if !flag_args.bytes && !flag_args.chars && !flag_args.lines {
+        cells.push(Cell::new(&file_stat.byte_count.to_string()));
+        cells.push(Cell::new(&file_stat.char_count.to_string()));
+        cells.push(Cell::new(&file_stat.line_count.to_string()));
+    } else {
+        if flag_args.bytes {
+            cells.push(Cell::new(&file_stat.byte_count.to_string()));
+        }
+
+        if flag_args.chars {
+            cells.push(Cell::new(&file_stat.char_count.to_string()));
+        }
+
+        if flag_args.lines {
+            cells.push(Cell::new(&file_stat.line_count.to_string()));
+        }
+
+        if flag_args.max_line_length {
+            cells.push(Cell::new(&file_stat.max_line_length.to_string()));
+        }
+
+        if flag_args.words {
+            cells.push(Cell::new(&file_stat.word_count.to_string()));
+        }
+    }
+
+    Row::new(cells)
+}
+
+fn create_table(flag_args: &FlagArgs) -> Table {
     let mut table = Table::new();
 
-    // default outputf
-    if !bytes && !chars && !lines {
+    // default output
+    if !flag_args.bytes && !flag_args.chars && !flag_args.lines {
         table.add_row(row!["FILE", "BYTES", "CHARS", "LINES"]);
     } else {
         let mut cells = Vec::<Cell>::new();
 
         cells.push(Cell::new("FILE"));
 
-        if bytes {
+        if flag_args.bytes {
             cells.push(Cell::new("BYTES"));
         }
 
-        if chars {
+        if flag_args.chars {
             cells.push(Cell::new("CHARS"));
         }
 
-        if lines {
+        if flag_args.lines {
             cells.push(Cell::new("LINES"));
         }
 
-        if max_line_length {
+        if flag_args.max_line_length {
             cells.push(Cell::new("MAX LINE LENGTH"));
         }
 
-        if words {
+        if flag_args.words {
             cells.push(Cell::new("WORDS"));
         }
 
@@ -98,14 +103,9 @@ fn setup_table(bytes: bool, chars: bool, lines: bool, max_line_length: bool, wor
 
 fn main() {
     let args = Args::parse();
+    let flag_args = FlagArgs::from(&args);
 
-    let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(setup_table(
-        args.bytes,
-        args.chars,
-        args.lines,
-        args.max_line_length,
-        args.words,
-    )));
+    let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(create_table(&flag_args)));
 
     if let Some(read_from) = args.read_from {
         if read_from == "-" {
@@ -131,37 +131,7 @@ fn main() {
             let rows = files.par_iter().map(|file_path| {
                 let file_stat = FileStat::try_from(file_path)?;
 
-                let mut cells = Vec::<Cell>::new();
-
-                cells.push(Cell::new(&file_stat.file_name));
-
-                if !args.bytes && !args.chars && !args.lines {
-                    cells.push(Cell::new(&file_stat.byte_count.to_string()));
-                    cells.push(Cell::new(&file_stat.char_count.to_string()));
-                    cells.push(Cell::new(&file_stat.line_count.to_string()));
-                } else {
-                    if args.bytes {
-                        cells.push(Cell::new(&file_stat.byte_count.to_string()));
-                    }
-
-                    if args.chars {
-                        cells.push(Cell::new(&file_stat.char_count.to_string()));
-                    }
-
-                    if args.lines {
-                        cells.push(Cell::new(&file_stat.line_count.to_string()));
-                    }
-
-                    if args.max_line_length {
-                        cells.push(Cell::new(&file_stat.max_line_length.to_string()));
-                    }
-
-                    if args.words {
-                        cells.push(Cell::new(&file_stat.word_count.to_string()));
-                    }
-                }
-
-                Ok(Row::new(cells))
+                Ok(process_file_stat(&file_stat, &flag_args))
             });
 
             rows.for_each(|row_result: Result<Row>| {
