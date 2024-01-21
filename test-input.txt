@@ -1,2 +1,3 @@
+Makefile
 Cargo.lock
 README.md

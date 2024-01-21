@@ -127,7 +127,8 @@ fn main() {
         } else {
             rows = read_from
                 .split(",")
-                .map(|s| s.to_string())
+                .filter_map(|input_file| process_input_file(&input_file.to_string()).ok())
+                .flat_map(|file_paths| file_paths)
                 .collect::<Vec<String>>()
                 .par_iter()
                 .map(|file_path| {
