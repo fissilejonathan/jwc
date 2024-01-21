@@ -13,8 +13,6 @@ use std::{
 pub mod args;
 pub mod file_stat;
 
-use std::convert::TryFrom;
-
 fn process_input_file(input_file: &String) -> Result<Vec<String>> {
     let file = File::open(input_file)?;
     let reader = io::BufReader::new(file);
