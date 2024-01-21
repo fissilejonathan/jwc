@@ -42,7 +42,12 @@ fn process_file_stat(file_stat: &FileStat, flag_args: &FlagArgs) -> Row {
 
     cells.push(Cell::new(&file_stat.file_name));
 
-    if !flag_args.bytes && !flag_args.chars && !flag_args.lines {
+    if !flag_args.bytes
+        && !flag_args.chars
+        && !flag_args.lines
+        && !flag_args.max_line_length
+        && !flag_args.words
+    {
         cells.push(Cell::new(&file_stat.byte_count.to_string()));
         cells.push(Cell::new(&file_stat.char_count.to_string()));
         cells.push(Cell::new(&file_stat.line_count.to_string()));
@@ -75,7 +80,12 @@ fn create_table(flag_args: &FlagArgs) -> Table {
     let mut table = Table::new();
 
     // default output
-    if !flag_args.bytes && !flag_args.chars && !flag_args.lines {
+    if !flag_args.bytes
+        && !flag_args.chars
+        && !flag_args.lines
+        && !flag_args.max_line_length
+        && !flag_args.words
+    {
         table.add_row(row!["FILE", "BYTES", "CHARS", "LINES"]);
     } else {
         let mut cells = Vec::<Cell>::new();
