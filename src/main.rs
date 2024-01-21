@@ -105,7 +105,7 @@ fn main() {
     let args = Args::parse();
     let flag_args = FlagArgs::from(&args);
 
-    let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(create_table(&flag_args)));
+    let mut rows = Vec::<Result<Row>>::new();
 
     if let Some(read_from) = args.read_from {
         if read_from == "-" {
@@ -116,37 +116,55 @@ fn main() {
 
             let input_files: Vec<String> = env::args().skip(dash_index + 1).collect();
 
-            let rows = input_files
+            rows = input_files
                 .par_iter()
                 .filter_map(|input_file| process_input_file(input_file).ok())
                 .flat_map(|file_paths| file_paths)
-                .map(|file_path| {});
-        } else {
-            let input_files: Vec<String> = read_from.split(",").map(|s| s.to_string()).collect();
+                .map(|file_path| {
+                    let file_stat = FileStat::try_from(&file_path)?;
 
-            println!("{:?}", input_files);
+                    Ok::<Row, std::io::Error>(process_file_stat(&file_stat, &flag_args))
+                })
+                .collect();
+        } else {
+            rows = read_from
+                .split(",")
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>()
+                .par_iter()
+                .map(|file_path| {
+                    let file_stat = FileStat::try_from(file_path)?;
+
+                    Ok::<Row, std::io::Error>(process_file_stat(&file_stat, &flag_args))
+                })
+                .collect();
         }
     } else {
         if let Some(files) = args.files {
-            let rows = files.par_iter().map(|file_path| {
-                let file_stat = FileStat::try_from(file_path)?;
+            rows = files
+                .par_iter()
+                .map(|file_path| {
+                    let file_stat = FileStat::try_from(file_path)?;
 
-                Ok(process_file_stat(&file_stat, &flag_args))
-            });
-
-            rows.for_each(|row_result: Result<Row>| {
-                match row_result {
-                    Ok(row) => {
-                        // Lock the mutex to access the table
-                        let mut locked_table = table.lock().unwrap();
-
-                        locked_table.add_row(row);
-                    }
-                    Err(e) => println!("{}", e),
-                }
-            });
+                    Ok::<Row, std::io::Error>(process_file_stat(&file_stat, &flag_args))
+                })
+                .collect();
         }
     }
+
+    let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(create_table(&flag_args)));
+
+    rows.iter().for_each(|row_result: &Result<Row>| {
+        match row_result {
+            Ok(row) => {
+                // Lock the mutex to access the table
+                let mut locked_table = table.lock().unwrap();
+
+                locked_table.add_row(row.clone());
+            }
+            Err(e) => println!("{}", e),
+        }
+    });
 
     let locked_table = table.lock().unwrap();
     locked_table.printstd();
