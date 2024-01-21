@@ -14,18 +14,27 @@ pub mod args;
 pub mod file_stat;
 
 fn process_input_file(input_file: &String) -> Result<Vec<String>> {
-    let file = File::open(input_file)?;
-    let reader = io::BufReader::new(file);
+    let file_result = File::open(input_file);
 
-    let mut input_files = Vec::<String>::new();
+    match file_result {
+        Ok(file) => {
+            let reader = io::BufReader::new(file);
 
-    for line_result in reader.lines() {
-        if let Ok(line) = line_result {
-            input_files.push(line);
+            let mut input_files = Vec::<String>::new();
+
+            for line_result in reader.lines() {
+                if let Ok(line) = line_result {
+                    input_files.push(line);
+                }
+            }
+
+            Ok(input_files)
         }
+        Err(e) => Err(std::io::Error::new(
+            e.kind(),
+            format!("{input_file} - {}", e.to_string()),
+        )),
     }
-
-    return Ok(input_files);
 }
 
 fn process_file_stat(file_stat: &FileStat, flag_args: &FlagArgs) -> Row {
