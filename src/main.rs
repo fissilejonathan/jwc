@@ -7,7 +7,6 @@ use std::{
     env,
     fs::File,
     io::{self, BufRead, Result},
-    sync::{Arc, Mutex},
 };
 
 pub mod args;
@@ -170,20 +169,15 @@ fn main() {
         }
     }
 
-    let table: Arc<Mutex<Table>> = Arc::new(Mutex::new(create_table(&flag_args)));
+    let mut table: Table = create_table(&flag_args);
 
-    rows.iter().for_each(|row_result: &Result<Row>| {
-        match row_result {
+    rows.iter()
+        .for_each(|row_result: &Result<Row>| match row_result {
             Ok(row) => {
-                // Lock the mutex to access the table
-                let mut locked_table = table.lock().unwrap();
-
-                locked_table.add_row(row.clone());
+                table.add_row(row.clone());
             }
             Err(e) => println!("{}", e),
-        }
-    });
+        });
 
-    let locked_table = table.lock().unwrap();
-    locked_table.printstd();
+    table.printstd();
 }
