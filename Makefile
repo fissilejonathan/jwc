@@ -1,4 +1,4 @@
-.PHONY: brun
+.PHONY: br
 
 # build and run
 br:
